@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dev Quiz App</title>
+<style>
+  :root{
+    --bg1:#0f172a; --bg2:#1e293b; --accent:#22d3ee; --accent2:#a78bfa; --text:#e2e8f0; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,'Helvetica Neue',Arial;
+    color:var(--text); background: radial-gradient(1200px 800px at 20% 10%, #0ea5e9 0%, transparent 50%),
+                              radial-gradient(1000px 700px at 80% 0%, #7c3aed 0%, transparent 50%),
+                              linear-gradient(160deg,var(--bg1),var(--bg2));
+    min-height:100vh; overflow-x:hidden;
+  }
+  h1,h2,h3{margin:0 0 .5rem}
+  a{color:inherit}
+  .app{
+    width:min(1000px,92vw); margin:40px auto; position:relative;
+  }
+  .card{
+    background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    padding:26px; backdrop-filter: blur(6px);
+  }
+
+  /* Pages */
+  .page{display:none; animation: fadeUp .6s ease both}
+  .page.active{display:block}
+  @keyframes fadeUp{
+    from{opacity:0; transform: translateY(16px) scale(.98)}
+    to{opacity:1; transform: translateY(0) scale(1)}
+  }
+
+  /* Buttons */
+  .row{display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    appearance:none; border:none; cursor:pointer; font-weight:600;
+    padding:12px 18px; border-radius:14px; transition:.25s transform, .25s box-shadow, .25s background;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color:#0b1020; box-shadow:0 6px 18px rgba(34,211,238,.35);
+  }
+  .btn:hover{transform: translateY(-2px)}
+  .btn:active{transform: translateY(0)}
+  .btn.secondary{
+    background: transparent; color:var(--text);
+    border:1px solid rgba(255,255,255,.2); box-shadow:none;
+  }
+  .btn[disabled]{opacity:.5; pointer-events:none}
+
+  /* Inputs */
+  .input{
+    width:100%; padding:12px 14px; border-radius:12px;
+    background:rgba(255,255,255,.06); color:var(--text);
+    border:1px solid rgba(255,255,255,.12); outline:none;
+    transition: .25s border, .25s box-shadow;
+  }
+  .input:focus{border-color: var(--accent); box-shadow:0 0 0 4px rgba(34,211,238,.15)}
+
+  .header{
+    display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;
+  }
+
+  /* Lang grid */
+  .grid{
+    display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(180px,1fr));
+    margin:14px 0 6px;
+  }
+  .lang{
+    position:relative; padding:16px; border-radius:16px; cursor:pointer;
+    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    transition:.25s transform,.25s box-shadow,.25s border-color;
+  }
+  .lang:hover{transform: translateY(-3px); border-color: rgba(255,255,255,.18)}
+  .lang input{position:absolute; inset:0; opacity:0; cursor:pointer}
+  .lang .name{font-weight:700; letter-spacing:.3px}
+  .lang .hint{font-size:.85rem; opacity:.75}
+  .lang.selected{outline:2px solid var(--accent); box-shadow:0 10px 28px rgba(167,139,250,.25)}
+
+  /* Quiz */
+  .q-card{
+    margin:14px 0; padding:18px; border-radius:16px;
+    border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.04);
+    animation: fadeUp .5s ease both;
+  }
+  .q-title{font-weight:700; margin-bottom:10px}
+  .option{
+    display:flex; align-items:flex-start; gap:10px; padding:10px; border-radius:12px; cursor:pointer;
+    border:1px solid transparent; transition:.2s border,.2s background;
+  }
+  .option:hover{background:rgba(255,255,255,.06)}
+  .option input{margin-top:3px}
+  .option.correct{border-color: rgba(16,185,129,.7)}
+  .option.wrong{border-color: rgba(239,68,68,.7)}
+  .muted{opacity:.8}
+  .result{
+    text-align:center; padding:20px; border-radius:16px; margin-top:12px;
+    background:linear-gradient(135deg, rgba(16,185,129,.15), rgba(167,139,250,.15));
+    border:1px solid rgba(255,255,255,.12); font-weight:700; font-size:1.1rem;
+    animation: pop .5s ease both;
+  }
+  @keyframes pop{from{transform: scale(.9); opacity:0} to{transform: scale(1); opacity:1}}
+
+  /* Progress bar */
+  .progress{
+    height:10px; background:rgba(255,255,255,.1);
+    border-radius:999px; overflow:hidden; margin:10px 0 2px;
+  }
+  .progress > div{
+    height:100%; width:0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .35s ease;
+  }
+  .pill{
+    display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12); font-size:.9rem;
+  }
+
+  /* Tiny footer */
+  .foot{opacity:.7; font-size:.9rem; text-align:center; margin-top:14px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <!-- PAGE 1: LOGIN -->
+    <section id="page-login" class="page active">
+      <div class="card">
+        <h1>Welcome to Dev Quiz</h1>
+        <p class="muted">Log in to start. (Demo login – any values work.)</p>
+        <div class="row" style="margin-top:14px">
+          <div style="flex:1 1 260px">
+            <label for="name" class="muted">Name</label>
+            <input id="name" class="input" placeholder="Your name"/>
+          </div>
+          <div style="flex:1 1 260px">
+            <label for="pwd" class="muted">Password</label>
+            <input id="pwd" type="password" class="input" placeholder="••••••••"/>
+          </div>
+        </div>
+        <div class="row" style="margin-top:16px">
+          <button class="btn" id="loginBtn">Login</button>
+        </div>
+      </div>
+      <p class="foot">Built as a single HTML file • Smooth animations • Randomized questions</p>
+    </section>
+
+    <!-- PAGE 2: LANGUAGE SELECT -->
+    <section id="page-lang" class="page">
+      <div class="card">
+        <div class="header">
+          <h2>Select Preferred Language</h2>
+          <span class="pill" id="helloUser"></span>
+        </div>
+        <div class="grid" id="langGrid">
+          <!-- Languages rendered by JS -->
+        </div>
+        <div class="row" style="justify-content:space-between; margin-top:8px">
+          <button class="btn secondary" id="backToLogin">← Back</button>
+          <button class="btn" id="proceedQuiz" disabled>Start Quiz →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 3: QUIZ -->
+    <section id="page-quiz" class="page">
+      <div class="card">
+        <div class="header">
+          <div>
+            <h2 id="quizTitle">Quiz</h2>
+            <div class="muted" id="quizSubtitle">15 questions • Randomized</div>
+          </div>
+          <div class="pill" id="userBadge"></div>
+        </div>
+
+        <div class="progress"><div id="progressFill"></div></div>
+        <div class="muted" id="progressText">0 / 15 answered</div>
+
+        <div id="questionsWrap" style="margin-top:10px">
+          <!-- Questions injected here -->
+        </div>
+
+        <div class="row" style="justify-content:space-between; margin-top:10px">
+          <button class="btn secondary" id="backToLang">← Change Language</button>
+          <div class="row">
+            <button class="btn secondary" id="reviewBtn" disabled>Review Answers</button>
+            <button class="btn" id="submitBtn" disabled>Submit</button>
+          </div>
+        </div>
+
+        <div id="resultBox" class="result" style="display:none"></div>
+      </div>
+    </section>
+  </div>
+
+<script>
+/* ------------ Utilities ------------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const shuffle = arr => arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+const sample = (arr, n) => shuffle(arr).slice(0,n);
+
+/* ------------ Data: Question Banks (>=16 each) ------------- */
+const BANK = {
+  "C": [
+    {q:"Which header is needed for printf?",o:{a:"<stdio.h>",b:"<stdlib.h>",c:"<string.h>",d:"<ctype.h>"},a:"a"},
+    {q:"Which is not a storage class in C?",o:{a:"auto",b:"static",c:"public",d:"register"},a:"c"},
+    {q:"What is sizeof(char) on most modern systems?",o:{a:"1 byte",b:"2 bytes",c:"4 bytes",d:"Depends on compiler only"},a:"a"},
+    {q:"Which operator has highest precedence?",o:{a:"*",b:"()",c:"+",d:"&&"},a:"b"},
+    {q:"Which is valid declaration?",o:{a:"int x;",b:"int 3x;",c:"int x-1;",d:"int x y;"},a:"a"},
+    {q:"Array indexes in C start at:",o:{a:"0",b:"1",c:"-1",d:"Any"},a:"a"},
+    {q:"Which frees heap memory?",o:{a:"delete",b:"free",c:"dispose",d:"remove"},a:"b"},
+    {q:"Which is not loop in C?",o:{a:"for",b:"foreach",c:"while",d:"do-while"},a:"b"},
+    {q:"What does 'const int *p' mean?",o:{a:"p is const",b:"*p is const",c:"p and *p const",d:"none"},a:"b"},
+    {q:"EOF is typically:",o:{a:"0",b:"-1",c:"1",d:"255"},a:"b"},
+    {q:"Which format prints string?",o:{a:"%c",b:"%s",c:"%d",d:"%f"},a:"b"},
+    {q:"Function without return type defaults to:",o:{a:"int",b:"void",c:"error",d:"char"},a:"a"},
+    {q:"Macro defined using:",o:{a:"#define",b:"#macro",c:"#def",d:"#var"},a:"a"},
+    {q:"Pointer to pointer type:",o:{a:"int*",b:"int**",c:"int&",d:"int[][]"},a:"b"},
+    {q:"Which copies strings?",o:{a:"strcpy",b:"copy",c:"memint",d:"strchar"},a:"a"},
+    {q:"What is a segmentation fault?",o:{a:"Syntax error",b:"Runtime memory access error",c:"Linker error",d:"Warning"},a:"b"},
+    {q:"Which keyword for dynamic memory?",o:{a:"malloc",b:"alloca",c:"assign",d:"new"},a:"a"},
+    {q:"Which is a valid comment?",o:{a:"// comment",b:"/* comment */",c:"both",d:"none"},a:"c"},
+  ],
+  "Java": [
+    {q:"Which is not a Java primitive?",o:{a:"int",b:"String",c:"double",d:"boolean"},a:"b"},
+    {q:"JVM stands for:",o:{a:"Java Virtual Machine",b:"Java Vendor Manager",c:"Just VM",d:"Java Visual Machine"},a:"a"},
+    {q:"Default value of uninitialized instance int?",o:{a:"0",b:"1",c:"null",d:"undefined"},a:"a"},
+    {q:"Which keyword prevents inheritance?",o:{a:"static",b:"final",c:"const",d:"sealed"},a:"b"},
+    {q:"Which collection is synchronized by default?",o:{a:"ArrayList",b:"Vector",c:"HashMap",d:"HashSet"},a:"b"},
+    {q:"Which is not OOP pillar?",o:{a:"Encapsulation",b:"Polymorphism",c:"Compilation",d:"Inheritance"},a:"c"},
+    {q:"Which method starts a Java app?",o:{a:"run()",b:"main()",c:"start()",d:"execute()"},a:"b"},
+    {q:"Checked exception example:",o:{a:"IOException",b:"NullPointerException",c:"ArithmeticException",d:"ArrayIndexOutOfBounds"},a:"a"},
+    {q:"Which creates thread?",o:{a:"extends Thread",b:"implements Runnable",c:"both",d:"none"},a:"c"},
+    {q:"String in Java is:",o:{a:"mutable",b:"immutable",c:"primitive",d:"struct"},a:"b"},
+    {q:"Which package imported by default?",o:{a:"java.util",b:"java.io",c:"java.lang",d:"java.net"},a:"c"},
+    {q:"JDK includes:",o:{a:"JRE + tools",b:"JRE only",c:"JVM only",d:"Compiler only"},a:"a"},
+    {q:"Which map allows null key?",o:{a:"Hashtable",b:"HashMap",c:"ConcurrentHashMap",d:"TreeMap"},a:"b"},
+    {q:"Which is not access modifier?",o:{a:"private",b:"protected",c:"internal",d:"public"},a:"c"},
+    {q:"Generics provide:",o:{a:"Type safety",b:"Faster JVM",c:"No casting ever",d:"Reflection"},a:"a"},
+    {q:"byte size:",o:{a:"4 bits",b:"8 bits",c:"16 bits",d:"32 bits"},a:"b"},
+    {q:"Which loads classes?",o:{a:"JIT",b:"ClassLoader",c:"Garbage Collector",d:"JRE"},a:"b"},
+    {q:"GC eliminates:",o:{a:"Unused objects",b:"All references",c:"static fields",d:"threads"},a:"a"},
+  ],
+  "Python": [
+    {q:"Which creates a list?",o:{a:"{}",b:"[]",c:"()",d:"set()"},a:"b"},
+    {q:"PEP 8 relates to:",o:{a:"Style guide",b:"Package index",c:"Performance",d:"Parser"},a:"a"},
+    {q:"Mutable type:",o:{a:"tuple",b:"str",c:"list",d:"frozenset"},a:"c"},
+    {q:"range(5) produces:",o:{a:"0..5",b:"0..4",c:"1..5",d:"1..4"},a:"b"},
+    {q:"Which opens file for reading?",o:{a:"open('f','r')",b:"open('f','w')",c:"open('f','a')",d:"open('f','x')"},a:"a"},
+    {q:"'is' compares:",o:{a:"values",b:"identity",c:"types",d:"hash"},a:"b"},
+    {q:"List comprehension syntax?",o:{a:"[expr for x in it]",b:"(expr for x)",c:"{expr: x}",d:"<x expr>"},a:"a"},
+    {q:"dict default iteration over:",o:{a:"values",b:"keys",c:"items",d:"indices"},a:"b"},
+    {q:"Virtual env tool:",o:{a:"venv",b:"pip3 -m",c:"virtualbox",d:"envpy"},a:"a"},
+    {q:"lambda is:",o:{a:"anonymous function",b:"module",c:"class",d:"keyword for loop"},a:"a"},
+    {q:"Decorator wraps:",o:{a:"functions/classes",b:"only classes",c:"variables",d:"modules"},a:"a"},
+    {q:"Which prints without newline?",o:{a:"print(x)",b:"print(x, end='')",c:"printn(x)",d:"echo x"},a:"b"},
+    {q:"Exception base class:",o:{a:"Error",b:"Exception",c:"BaseError",d:"Throwable"},a:"b"},
+    {q:"Which library for HTTP?",o:{a:"requests",b:"numbers",c:"pickle",d:"enum"},a:"a"},
+    {q:"Set literal:",o:{a:"[]",b:"()",c:"{}",d:"set() only"},a:"d"},
+    {q:"Slice s[:: -1] does:",o:{a:"reverse",b:"rotate",c:"copy",d:"skip 1"},a:"a"},
+    {q:"PEP stands for:",o:{a:"Python Enhancement Proposal",b:"Pretty Easy Python",c:"Package Entry Point",d:"Performance Eval Plan"},a:"a"},
+  ],
+  "C++": [
+    {q:"Which supports OOP features?",o:{a:"C",b:"C++",c:"Both",d:"None"},a:"b"},
+    {q:"Which is not STL container?",o:{a:"vector",b:"map",c:"queue",d:"table"},a:"d"},
+    {q:"Reference declared with:",o:{a:"&",b:"*",c:"#",d:"@"},a:"a"},
+    {q:"new/delete operate on:",o:{a:"stack",b:"heap",c:"static",d:"register"},a:"b"},
+    {q:"Which enables function overloading?",o:{a:"Same name different params",b:"Same name same params",c:"Different scope only",d:"Macros"},a:"a"},
+    {q:"Which is RAII about?",o:{a:"Resource mgmt in ctor/dtor",b:"Runtime type info",c:"Inline assembly",d:"GUI"},a:"a"},
+    {q:"Which prints without endl flush?",o:{a:"std::cout << x;",b:"std::endl",c:"std::flush",d:"printf"},a:"a"},
+    {q:"Smart pointer owning single:",o:{a:"unique_ptr",b:"shared_ptr",c:"weak_ptr",d:"auto_ptr"},a:"a"},
+    {q:"Which is not access specifier?",o:{a:"private",b:"friend",c:"public",d:"protected"},a:"b"},
+    {q:"Templates provide:",o:{a:"Generic programming",b:"Garbage collection",c:"Runtime reflection",d:"Signals"},a:"a"},
+    {q:"Which calls base constructor?",o:{a:"Initializer list",b:"Inside body",c:"Implicit always",d:"Not possible"},a:"a"},
+    {q:"Inline functions hint:",o:{a:"may inline",b:"must inline",c:"never inline",d:"opt-out"},a:"a"},
+    {q:"Operator to access members via pointer:",o:{a:".",b:"->",c:"::",d:":"},a:"b"},
+    {q:"std::move returns:",o:{a:"copy",b:"rvalue reference",c:"lvalue reference",d:"void"},a:"b"},
+    {q:"Which header for vector?",o:{a:"<array>",b:"<vector>",c:"<list>",d:"<map>"},a:"b"},
+    {q:"Exception base:",o:{a:"std::exception",b:"std::error",c:"std::throwable",d:"std::fault"},a:"a"},
+    {q:"Override keyword ensures:",o:{a:"compile-time check",b:"runtime only",c:"no effect",d:"prevent virtual"},a:"a"},
+  ],
+  "HTML": [
+    {q:"HTML stands for:",o:{a:"HyperText Markup Language",b:"Hyperlinks and Text Markup Language",c:"Home Tool Markup Language",d:"HighText Markup Language"},a:"a"},
+    {q:"Block-level element:",o:{a:"<span>",b:"<div>",c:"<a>",d:"<img>"},a:"b"},
+    {q:"Semantic element:",o:{a:"<section>",b:"<b>",c:"<i>",d:"<font>"},a:"a"},
+    {q:"Correct HTML5 doctype:",o:{a:"<!doctype html>",b:"<doctype html>",c:"</doctype>",d:"<!HTML>"} ,a:"a"},
+    {q:"Open link in new tab:",o:{a:"target='_blank'",b:"newtab",c:"rel='new'",d:"data-target"},a:"a"},
+    {q:"Image without alt is:",o:{a:"fine",b:"invalid for accessibility",c:"faster",d:"required only for SVG"},a:"b"},
+    {q:"Which groups input fields?",o:{a:"<fieldset>",b:"<group>",c:"<section>",d:"<formset>"},a:"a"},
+    {q:"Table header cell:",o:{a:"<td>",b:"<th>",c:"<thead>",d:"<tr>"},a:"b"},
+    {q:"Inline element:",o:{a:"<p>",b:"<div>",c:"<span>",d:"<header>"},a:"c"},
+    {q:"Best for navigation:",o:{a:"<nav>",b:"<menu>",c:"<aside>",d:"<footer>"},a:"a"},
+    {q:"Media embedding:",o:{a:"<video>",b:"<movie>",c:"<media>",d:"<embedonly>"},a:"a"},
+    {q:"Highlight text:",o:{a:"<u>",b:"<mark>",c:"<strong>",d:"<em>"},a:"b"},
+    {q:"Metadata goes in:",o:{a:"<body>",b:"<main>",c:"<head>",d:"<footer>"},a:"c"},
+    {q:"Form method to hide in URL:",o:{a:"GET",b:"POST",c:"HEAD",d:"LINK"},a:"b"},
+    {q:"List with bullets:",o:{a:"<ol>",b:"<ul>",c:"<dl>",d:"<list>"},a:"b"},
+    {q:"Break line:",o:{a:"<break>",b:"<br>",c:"<lb>",d:"<nl>"},a:"b"},
+    {q:"Best for important text:",o:{a:"<strong>",b:"<b>",c:"<mark>",d:"<em>"},a:"a"},
+  ],
+  "CSS": [
+    {q:"CSS stands for:",o:{a:"Cascading Style Sheets",b:"Creative Style System",c:"Computed Sheet Styles",d:"Cascaded Sheet System"},a:"a"},
+    {q:"Insert CSS into HTML:",o:{a:"<style>",b:"<css>",c:"<script>",d:"<link rel='js'>"},a:"a"},
+    {q:"Select by id:",o:{a:".id",b:"#id",c:"id:",d:"$id"},a:"b"},
+    {q:"Flexbox main-axis prop:",o:{a:"justify-content",b:"align-items",c:"align-content",d:"gap"},a:"a"},
+    {q:"Make text bold:",o:{a:"font-weight:700",b:"font-style:bold",c:"text-bold:true",d:"weight:bold"},a:"a"},
+    {q:"Center using margin:",o:{a:"margin: 0 auto",b:"margin: center",c:"auto: margin 0",d:"center: true"},a:"a"},
+    {q:"Variable syntax:",o:{a:"--name: value",b:"var-name: value",c:"$name: value",d:"@name: value"},a:"a"},
+    {q:"Grid define columns:",o:{a:"grid-template-columns",b:"grid-columns",c:"columns-grid",d:"grid-cols"},a:"a"},
+    {q:"Unit relative to root font:",o:{a:"em",b:"rem",c:"vh",d:"%"} ,a:"b"},
+    {q:"Pseudo-class hover:",o:{a:":hover",b:"::hover",c:":onhover",d:"hover()"},a:"a"},
+    {q:"Z-index works on:",o:{a:"static elements",b:"positioned elements",c:"all",d:"inline only"},a:"b"},
+    {q:"Make element sticky:",o:{a:"position: sticky",b:"position: glue",c:"display: sticky",d:"float: top"},a:"a"},
+    {q:"Shadow property:",o:{a:"box-shadow",b:"shadow-box",c:"element-shadow",d:"drop-shadow"},a:"a"},
+    {q:"Transition property:",o:{a:"transition: all .3s",b:"animate: .3s",c:"trans: .3s",d:"move: .3s"},a:"a"},
+    {q:"Circle with:",o:{a:"border-radius:50%",b:"shape:circle",c:"radius:50",d:"corner:round"},a:"a"},
+    {q:"Import CSS file:",o:{a:"@import url('x.css')",b:"import('x.css')",c:"require 'x.css'",d:"load css"},a:"a"},
+    {q:"Media query keyword:",o:{a:"@media",b:"@screen",c:"@viewport",d:"@device"},a:"a"},
+  ],
+  "JavaScript": [
+    {q:"Which is not a JS data type?",o:{a:"Number",b:"Boolean",c:"Character",d:"Symbol"},a:"c"},
+    {q:"Strict equality operator:",o:{a:"==",b:"===",c:"!=",d:"=~"},a:"b"},
+    {q:"let vs var:",o:{a:"block vs function scope",b:"both block",c:"both function",d:"no diff"},a:"a"},
+    {q:"Arrow function syntax:",o:{a:"(a)=>a",b:"function->",c:"=>()",d:"lambda()"},a:"a"},
+    {q:"NaN is:",o:{a:"== itself",b:"!== itself",c:"< 0",d:"> 0"},a:"b"},
+    {q:"Which converts string to int?",o:{a:"parseInt",b:"Number.toInt",c:"int()",d:"String.int"},a:"a"},
+    {q:"Array method adds to end:",o:{a:"push",b:"pop",c:"shift",d:"unshift"},a:"a"},
+    {q:"Promise states:",o:{a:"pending/fulfilled/rejected",b:"open/close",c:"start/stop",d:"idle/running"},a:"a"},
+    {q:"JSON.parse expects:",o:{a:"object",b:"string",c:"array buffer",d:"map"},a:"b"},
+    {q:"this in arrow fn is:",o:{a:"lexically bound",b:"dynamic",c:"window always",d:"undefined"},a:"a"},
+    {q:"DOM method to select first match:",o:{a:"querySelector",b:"querySelectorAll",c:"getElementsByClassName",d:"getElementById"},a:"a"},
+    {q:"Event capturing/bubbling order default:",o:{a:"capturing",b:"bubbling",c:"random",d:"none"},a:"b"},
+    {q:"Which is falsy?",o:{a:"0",b:"'0'",c:"[]",d:"{}"},a:"a"},
+    {q:"Spread operator:",o:{a:"...",b:"**",c:"//",d:"??"},a:"a"},
+    {q:"LocalStorage stores:",o:{a:"strings",b:"objects",c:"buffers",d:"streams"},a:"a"},
+    {q:"Set removes:",o:{a:"duplicates",b:"order",c:"size",d:"truthy"},a:"a"},
+    {q:"Optional chaining:",o:{a:"?.",b:"??",c:"!.",d:"::"},a:"a"},
+  ],
+};
+
+/* ------------ State ------------- */
+let currentUser = null;
+let chosenLang = null;
+let quiz = []; // 15 Qs
+let answers = {}; // qIndex -> 'a'|'b'|'c'|'d'
+
+/* ------------ Elements ------------- */
+const pageLogin = $("#page-login");
+const pageLang  = $("#page-lang");
+const pageQuiz  = $("#page-quiz");
+const loginBtn  = $("#loginBtn");
+const proceedBtn= $("#proceedQuiz");
+const backToLogin=$("#backToLogin");
+const backToLang=$("#backToLang");
+const submitBtn = $("#submitBtn");
+const reviewBtn = $("#reviewBtn");
+const helloUser = $("#helloUser");
+const userBadge = $("#userBadge");
+const langGrid  = $("#langGrid");
+const progressFill=$("#progressFill");
+const progressText=$("#progressText");
+const resultBox = $("#resultBox");
+
+/* ------------ Page navigation ------------- */
+function showPage(id){
+  [pageLogin,pageLang,pageQuiz].forEach(p=>p.classList.remove("active"));
+  id.classList.add("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ------------ Login ------------- */
+loginBtn.addEventListener("click", ()=>{
+  const name = $("#name").value.trim();
+  const pwd  = $("#pwd").value.trim();
+  if(!name || !pwd){
+    pulse($("#name")); pulse($("#pwd"));
+    return;
+  }
+  currentUser = name;
+  helloUser.textContent = `Hello, ${currentUser} 👋`;
+  showPage(pageLang);
+});
+
+function pulse(el){
+  el.style.boxShadow = "0 0 0 6px rgba(239,68,68,.25)";
+  setTimeout(()=> el.style.boxShadow = "", 300);
+}
+
+/* ------------ Language selection ------------- */
+const LANG_LIST = [
+  {key:"C", label:"C", hint:"Procedural, low-level control"},
+  {key:"Java", label:"Java", hint:"OOP, JVM-based"},
+  {key:"Python", label:"Python", hint:"Batteries included"},
+  {key:"C++", label:"C++", hint:"Generic + OOP"},
+  {key:"HTML", label:"HTML", hint:"Structure"},
+  {key:"CSS", label:"CSS", hint:"Styles"},
+  {key:"JavaScript", label:"JavaScript", hint:"The Web's language"},
+];
+LANG_LIST.forEach(({key,label,hint})=>{
+  const d = document.createElement("div");
+  d.className = "lang";
+  d.innerHTML = `<input type="radio" name="lang" value="${key}">
+                 <div class="name">${label}</div>
+                 <div class="hint">${hint}</div>`;
+  d.addEventListener("click", ()=>{
+    $$("#page-lang .lang").forEach(x=>x.classList.remove("selected"));
+    d.classList.add("selected");
+    d.querySelector("input").checked = true;
+    chosenLang = key;
+    proceedBtn.disabled = false;
+  });
+  langGrid.appendChild(d);
+});
+
+backToLogin.addEventListener("click", ()=> showPage(pageLogin));
+
+/* ------------ Build Quiz ------------- */
+proceedBtn.addEventListener("click", ()=>{
+  if(!chosenLang) return;
+  const pool = BANK[chosenLang];
+  quiz = sample(pool, 15);
+  answers = {};
+  $("#quizTitle").textContent = `${chosenLang} Quiz`;
+  $("#quizSubtitle").textContent = "15 questions • Randomized each time";
+  userBadge.textContent = `${currentUser} • ${chosenLang}`;
+  renderQuiz();
+  updateProgress();
+  resultBox.style.display = "none";
+  submitBtn.disabled = true;
+  reviewBtn.disabled = true;
+  showPage(pageQuiz);
+});
+backToLang.addEventListener("click", ()=> showPage(pageLang));
+
+/* ------------ Render Quiz ------------- */
+function renderQuiz(){
+  const wrap = $("#questionsWrap");
+  wrap.innerHTML = "";
+  quiz.forEach((item, idx)=>{
+    const card = document.createElement("div");
+    card.className = "q-card";
+    card.innerHTML = `
+      <div class="q-title">${idx+1}. ${escapeHTML(item.q)}</div>
+      ${renderOption(idx,'a',item.o.a)}
+      ${renderOption(idx,'b',item.o.b)}
+      ${renderOption(idx,'c',item.o.c)}
+      ${renderOption(idx,'d',item.o.d)}
+    `;
+    wrap.appendChild(card);
+  });
+  // attach listeners
+  $$("#questionsWrap input[type=radio]").forEach(r=>{
+    r.addEventListener("change", e=>{
+      const {name,value} = e.target; // name = q-idx
+      const idx = parseInt(name.split("-")[1],10);
+      answers[idx] = value;
+      updateProgress();
+    });
+  });
+}
+function renderOption(idx, key, text){
+  const id = `q${idx}-${key}`;
+  return `
+    <label class="option" for="${id}">
+      <input id="${id}" type="radio" name="q-${idx}" value="${key}">
+      <div><strong>${key.toUpperCase()}.</strong> ${escapeHTML(text)}</div>
+    </label>
+  `;
+}
+function escapeHTML(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;" }[m])); }
+
+/* ------------ Progress + Submit ------------- */
+function updateProgress(){
+  const total = quiz.length;
+  const answered = Object.keys(answers).length;
+  progressFill.style.width = `${Math.round((answered/total)*100)}%`;
+  progressText.textContent = `${answered} / ${total} answered`;
+  submitBtn.disabled = answered < total;   // require all answered
+  reviewBtn.disabled = answered === 0;
+}
+
+submitBtn.addEventListener("click", ()=>{
+  // grade
+  let score = 0;
+  quiz.forEach((q,i)=>{ if(answers[i] === q.a) score++; });
+
+  // visualize correctness
+  quiz.forEach((q,i)=>{
+    const options = $$(`[name="q-${i}"]`).map(r=>r.closest('.option'));
+    options.forEach(opt=>opt.classList.remove("correct","wrong"));
+    const correctOpt = $(`#q${i}-${q.a}`).closest('.option');
+    correctOpt.classList.add("correct");
+    if(answers[i] && answers[i] !== q.a){
+      const wrongOpt = $(`#q${i}-${answers[i]}`).closest('.option');
+      wrongOpt.classList.add("wrong");
+    }
+    // lock inputs
+    $$(`[name="q-${i}"]`).forEach(r=> r.disabled = true);
+  });
+
+  resultBox.style.display = "block";
+  const percent = Math.round(score/quiz.length*100);
+  let emoji = "💪";
+  if(percent === 100) emoji = "🏆";
+  else if(percent >= 80) emoji = "🎉";
+  else if(percent >= 60) emoji = "🙂";
+  else if(percent >= 40) emoji = "🧗";
+  else emoji = "📚";
+  resultBox.textContent = `${emoji} You scored ${score} / ${quiz.length} (${percent}%)`;
+});
+
+reviewBtn.addEventListener("click", ()=>{
+  // scroll to first unanswered or first question
+  const unanswered = quiz.map((_,i)=>i).filter(i=>!answers[i]);
+  const targetIdx = unanswered.length ? unanswered[0] : 0;
+  const node = $$(`.q-card`)[targetIdx];
+  node.scrollIntoView({behavior:"smooth",block:"center"});
+  node.style.outline = "2px solid var(--warn)";
+  setTimeout(()=> node.style.outline = "", 900);
+});
+
+/* Enable Review button as soon as any answer exists */
+document.addEventListener("change", (e)=>{
+  if(e.target && e.target.matches("#questionsWrap input[type=radio]")){
+    reviewBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
